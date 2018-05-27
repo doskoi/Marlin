@@ -67,19 +67,19 @@ extern volatile uint8_t buttons;  //an extended version of the last checked butt
     #define B_I2C_BTN_OFFSET 3 // (the first three bit positions reserved for EN_A, EN_B, EN_C)
 
     // button and encoder bit positions within 'buttons'
-    #define B_LE (BUTTON_LEFT<<B_I2C_BTN_OFFSET)    // The remaining normalized buttons are all read via I2C
-    #define B_UP (BUTTON_UP<<B_I2C_BTN_OFFSET)
-    #define B_MI (BUTTON_SELECT<<B_I2C_BTN_OFFSET)
-    #define B_DW (BUTTON_DOWN<<B_I2C_BTN_OFFSET)
-    #define B_RI (BUTTON_RIGHT<<B_I2C_BTN_OFFSET)
+    #define B_LE (BUTTON_LEFT   << B_I2C_BTN_OFFSET)    // The remaining normalized buttons are all read via I2C
+    #define B_UP (BUTTON_UP     << B_I2C_BTN_OFFSET)
+    #define B_MI (BUTTON_SELECT << B_I2C_BTN_OFFSET)
+    #define B_DW (BUTTON_DOWN   << B_I2C_BTN_OFFSET)
+    #define B_RI (BUTTON_RIGHT  << B_I2C_BTN_OFFSET)
 
     #undef LCD_CLICKED
     #if BUTTON_EXISTS(ENC)
       // the pause/stop/restart button is connected to BTN_ENC when used
       #define B_ST (EN_C)                            // Map the pause/stop/resume button into its normalized functional name
-      #define LCD_CLICKED (buttons&(B_MI|B_RI|B_ST)) // pause/stop button also acts as click until we implement proper pause/stop.
+      #define LCD_CLICKED (buttons & (B_MI|B_RI|B_ST)) // pause/stop button also acts as click until we implement proper pause/stop.
     #else
-      #define LCD_CLICKED (buttons&(B_MI|B_RI))
+      #define LCD_CLICKED (buttons & (B_MI|B_RI))
     #endif
 
     // I2C buttons take too long to read inside an interrupt context and so we read them during lcd_update
@@ -91,7 +91,7 @@ extern volatile uint8_t buttons;  //an extended version of the last checked butt
 
       #define B_I2C_BTN_OFFSET 3 // (the first three bit positions reserved for EN_A, EN_B, EN_C)
 
-      #define B_MI (PANELOLU2_ENCODER_C<<B_I2C_BTN_OFFSET) // requires LiquidTWI2 library v1.2.3 or later
+      #define B_MI (PANELOLU2_ENCODER_C << B_I2C_BTN_OFFSET) // requires LiquidTWI2 library v1.2.3 or later
 
       #undef LCD_CLICKED
       #define LCD_CLICKED (buttons & B_MI)
@@ -491,13 +491,42 @@ void lcd_printPGM_utf(const char *str, uint8_t n=LCD_WIDTH) {
 
   // Scroll the PSTR 'text' in a 'len' wide field for 'time' milliseconds at position col,line
   void lcd_scroll(const int16_t col, const int16_t line, const char* const text, const int16_t len, const int16_t time) {
-    char tmp[LCD_WIDTH + 1] = {0};
-    int16_t n = max(lcd_strlen_P(text) - len, 0);
-    for (int16_t i = 0; i <= n; i++) {
-      strncpy_P(tmp, text + i, min(len, LCD_WIDTH));
+    uint8_t slen = lcd_strlen_P(text);
+    if (slen < len) {
+      // Fits into,
       lcd.setCursor(col, line);
-      lcd_print(tmp);
-      delay(time / max(n, 1));
+      lcd_printPGM_utf(text, len);
+      while (slen < len) {
+        lcd.write(' ');
+        ++slen;
+      }
+      safe_delay(time);
+    }
+    else {
+      const char* p = text;
+      int dly = time / MAX(slen, 1);
+      for (uint8_t i = 0; i <= slen; i++) {
+
+        // Go to the correct place
+        lcd.setCursor(col, line);
+
+        // Print the text
+        lcd_printPGM_utf(p, len);
+
+        // Fill with spaces
+        uint8_t ix = slen - i;
+        while (ix < len) {
+          lcd.write(' ');
+          ++ix;
+        }
+
+        // Delay
+        safe_delay(dly);
+
+        // Advance to the next UTF8 valid position
+        p++;
+        while (!START_OF_UTF8_CHAR(pgm_read_byte(p))) p++;
+      }
     }
   }
 
@@ -895,37 +924,81 @@ static void lcd_implementation_status_screen() {
 
   #if ENABLED(STATUS_MESSAGE_SCROLLING)
     static bool last_blink = false;
-    const uint8_t slen = lcd_strlen(lcd_status_message);
-    const char *stat = lcd_status_message + status_scroll_pos;
-    if (slen <= LCD_WIDTH)
-      lcd_print_utf(stat);                                      // The string isn't scrolling
+
+    // Get the UTF8 character count of the string
+    uint8_t slen = lcd_strlen(lcd_status_message);
+
+    // If the string fits into the LCD, just print it and do not scroll it
+    if (slen <= LCD_WIDTH) {
+
+      // The string isn't scrolling and may not fill the screen
+      lcd_print_utf(lcd_status_message);
+
+      // Fill the rest with spaces
+      while (slen < LCD_WIDTH) {
+        lcd.write(' ');
+        ++slen;
+      }
+    }
     else {
-      if (status_scroll_pos <= slen - LCD_WIDTH)
-        lcd_print_utf(stat);                                    // The string fills the screen
+      // String is larger than the available space in screen.
+
+      // Get a pointer to the next valid UTF8 character
+      const char *stat = lcd_status_message + status_scroll_offset;
+
+      // Get the string remaining length
+      const uint8_t rlen = lcd_strlen(stat);
+
+      // If we have enough characters to display
+      if (rlen >= LCD_WIDTH) {
+        // The remaining string fills the screen - Print it
+        lcd_print_utf(stat, LCD_WIDTH);
+      }
       else {
-        uint8_t chars = LCD_WIDTH;
-        if (status_scroll_pos < slen) {                         // First string still visible
-          lcd_print_utf(stat);                                  // The string leaves space
-          chars -= slen - status_scroll_pos;                    // Amount of space left
-        }
-        lcd.write('.');                                         // Always at 1+ spaces left, draw a dot
-        if (--chars) {
-          if (status_scroll_pos < slen + 1)                     // Draw a second dot if there's space
-            --chars, lcd.write('.');
-          if (chars) lcd_print_utf(lcd_status_message, chars);  // Print a second copy of the message
+
+        // The remaining string does not completely fill the screen
+        lcd_print_utf(stat, LCD_WIDTH);               // The string leaves space
+        uint8_t chars = LCD_WIDTH - rlen;             // Amount of space left in characters
+
+        lcd.write('.');                               // Always at 1+ spaces left, draw a dot
+        if (--chars) {                                // Draw a second dot if there's space
+          lcd.write('.');
+          if (--chars)
+            lcd_print_utf(lcd_status_message, chars); // Print a second copy of the message
         }
       }
       if (last_blink != blink) {
         last_blink = blink;
-        // Skip any non-printing bytes
-        if (status_scroll_pos < slen) while (!PRINTABLE(lcd_status_message[status_scroll_pos])) status_scroll_pos++;
-        if (++status_scroll_pos >= slen + 2) status_scroll_pos = 0;
+
+        // Adjust by complete UTF8 characters
+        if (status_scroll_offset < slen) {
+          status_scroll_offset++;
+          while (!START_OF_UTF8_CHAR(lcd_status_message[status_scroll_offset]))
+            status_scroll_offset++;
+        }
+        else
+          status_scroll_offset = 0;
       }
     }
   #else
-    lcd_print_utf(lcd_status_message);
+    UNUSED(blink);
+
+    // Get the UTF8 character count of the string
+    uint8_t slen = lcd_strlen(lcd_status_message);
+
+    // Just print the string to the LCD
+    lcd_print_utf(lcd_status_message, LCD_WIDTH);
+
+    // Fill the rest with spaces if there are missing spaces
+    while (slen < LCD_WIDTH) {
+      lcd.write(' ');
+      ++slen;
+    }
   #endif
+
 }
+
+
 
 #if ENABLED(ULTIPANEL)
 
@@ -1032,7 +1105,7 @@ static void lcd_implementation_status_screen() {
               name_hash = ((name_hash << 1) | (name_hash >> 7)) ^ filename[l];  // rotate, xor
             if (filename_scroll_hash != name_hash) {                            // If the hash changed...
               filename_scroll_hash = name_hash;                                 // Save the new hash
-              filename_scroll_max = max(0, lcd_strlen(longFilename) - n);  // Update the scroll limit
+              filename_scroll_max = MAX(0, lcd_strlen(longFilename) - n);  // Update the scroll limit
               filename_scroll_pos = 0;                                          // Reset scroll to the start
               lcd_status_update_delay = 8;                                      // Don't scroll right away
             }
@@ -1345,7 +1418,7 @@ static void lcd_implementation_status_screen() {
         //dump_custom_char("at entry:", &new_char);
 
         clear_custom_char(&new_char);
-        const uint8_t ypix = min(upper_left.y_pixel_offset + pixels_per_y_mesh_pnt, ULTRA_Y_PIXELS_PER_CHAR);
+        const uint8_t ypix = MIN(upper_left.y_pixel_offset + pixels_per_y_mesh_pnt, ULTRA_Y_PIXELS_PER_CHAR);
         for (j = upper_left.y_pixel_offset; j < ypix; j++) {
           i = upper_left.x_pixel_mask;
           for (k = 0; k < pixels_per_x_mesh_pnt; k++) {

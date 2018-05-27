@@ -273,6 +273,12 @@
   #error "FILAMENT_CHANGE_LOAD_LENGTH is now FILAMENT_CHANGE_FAST_LOAD_LENGTH. Please update your configuration."
 #elif ENABLED(LEVEL_BED_CORNERS) && !defined(LEVEL_CORNERS_INSET)
   #error "LEVEL_BED_CORNERS requires a LEVEL_CORNERS_INSET value. Please update your Configuration.h."
+#elif defined(BEZIER_JERK_CONTROL)
+  #error "BEZIER_JERK_CONTROL is now S_CURVE_ACCELERATION. Please update your configuration."
+#elif defined(JUNCTION_DEVIATION_FACTOR)
+  #error "JUNCTION_DEVIATION_FACTOR is now JUNCTION_DEVIATION_MM. Please update your configuration."
+#elif defined(JUNCTION_ACCELERATION_FACTOR)
+  #error "JUNCTION_ACCELERATION_FACTOR is now JUNCTION_ACCELERATION. Please update your configuration."
 #endif
 
 #define BOARD_MKS_13     -47
@@ -307,7 +313,7 @@
 /**
  * Serial
  */
-#if !(defined(__AVR__) && defined(USBCON))
+#if USE_MARLINSERIAL
   #if ENABLED(SERIAL_XON_XOFF) && RX_BUFFER_SIZE < 1024
     #error "SERIAL_XON_XOFF requires RX_BUFFER_SIZE >= 1024 for reliable transfers without drops."
   #elif RX_BUFFER_SIZE && (RX_BUFFER_SIZE < 2 || !IS_POWER_OF_2(RX_BUFFER_SIZE))
@@ -545,8 +551,12 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
 /**
  * Single Stepper Dual Extruder with switching servo
  */
-#if ENABLED(SWITCHING_EXTRUDER) && NUM_SERVOS < 1
-  #error "SWITCHING_EXTRUDER requires NUM_SERVOS >= 1."
+#if ENABLED(SWITCHING_EXTRUDER)
+  #if ENABLED(SINGLENOZZLE)
+    #error "SWITCHING_EXTRUDER and SINGLENOZZLE are incompatible."
+  #elif NUM_SERVOS < 1
+    #error "SWITCHING_EXTRUDER requires NUM_SERVOS >= 1."
+  #endif
 #endif
 
 /**
@@ -1274,7 +1284,7 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
 /**
  * emergency-command parser
  */
-#if ENABLED(EMERGENCY_PARSER) && defined(__AVR__) && defined(USBCON)
+#if ENABLED(EMERGENCY_PARSER) && !USE_MARLINSERIAL
   #error "EMERGENCY_PARSER does not work on boards with AT90USB processors (USBCON)."
 #endif
 

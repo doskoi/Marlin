@@ -62,7 +62,7 @@
 #if HAS_TRINAMIC
   #include "stepper_indirection.h"
   #include "tmc_util.h"
-  #define TMC_GET_PWMTHRS(P,Q) _tmc_thrs(stepper##Q.microsteps(), stepper##Q.TPWMTHRS(), planner.axis_steps_per_mm[P##_AXIS])
+  #define TMC_GET_PWMTHRS(A,Q) _tmc_thrs(stepper##Q.microsteps(), stepper##Q.TPWMTHRS(), planner.axis_steps_per_mm[_AXIS(A)])
 #endif
 
 #if ENABLED(AUTO_BED_LEVELING_UBL)
@@ -1343,7 +1343,7 @@ void MarlinSettings::postprocess() {
       #endif
 
       #if ENABLED(HYBRID_THRESHOLD)
-        #define TMC_SET_PWMTHRS(P,Q) tmc_set_pwmthrs(stepper##Q, tmc_hybrid_threshold[TMC_##Q], planner.axis_steps_per_mm[P##_AXIS])
+        #define TMC_SET_PWMTHRS(A,Q) tmc_set_pwmthrs(stepper##Q, tmc_hybrid_threshold[TMC_##Q], planner.axis_steps_per_mm[_AXIS(A)])
         uint32_t tmc_hybrid_threshold[TMC_AXES];
         EEPROM_READ(tmc_hybrid_threshold);
         if (!validating) {
@@ -1718,7 +1718,7 @@ void MarlinSettings::reset() {
     constexpr float tmp4[XYZ][HOTENDS] = {
       HOTEND_OFFSET_X,
       HOTEND_OFFSET_Y
-      #ifdef HOTEND_OFFSET_Z
+      #if HAS_HOTEND_OFFSET_Z
         , HOTEND_OFFSET_Z
       #else
         , { 0 }
@@ -2109,7 +2109,7 @@ void MarlinSettings::reset() {
         SERIAL_ECHOPAIR("  M218 T", (int)e);
         SERIAL_ECHOPAIR(" X", LINEAR_UNIT(hotend_offset[X_AXIS][e]));
         SERIAL_ECHOPAIR(" Y", LINEAR_UNIT(hotend_offset[Y_AXIS][e]));
-        #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(SWITCHING_NOZZLE) ||ENABLED(PARKING_EXTRUDER)
+        #if HAS_HOTEND_OFFSET_Z
           SERIAL_ECHOPAIR(" Z", LINEAR_UNIT(hotend_offset[Z_AXIS][e]));
         #endif
         SERIAL_EOL();
