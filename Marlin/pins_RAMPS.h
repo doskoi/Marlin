@@ -92,14 +92,14 @@
 #define X_DIR_PIN          55
 #define X_ENABLE_PIN       38
 #ifndef X_CS_PIN
-  #define X_CS_PIN         53
+  #define X_CS_PIN         63
 #endif
 
 #define Y_STEP_PIN         60
 #define Y_DIR_PIN          61
 #define Y_ENABLE_PIN       56
 #ifndef Y_CS_PIN
-  #define Y_CS_PIN         49
+  #define Y_CS_PIN         59
 #endif
 
 #define Z_STEP_PIN         46
@@ -131,7 +131,7 @@
     #define TMC_SW_MOSI    66
   #endif
   #ifndef TMC_SW_MISO
-    #define TMC_SW_MISO    44
+    #define TMC_SW_MISO    65
   #endif
   #ifndef TMC_SW_SCK
     #define TMC_SW_SCK     64
