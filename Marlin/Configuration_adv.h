@@ -1085,7 +1085,7 @@
  * in your `pins_MYBOARD.h` file. (e.g., RAMPS 1.4 uses AUX3 pins `X_CS_PIN 53`, `Y_CS_PIN 49`, etc.).
  * You may also use software SPI if you wish to use general purpose IO pins.
  */
-#define HAVE_TMC2130
+// #define HAVE_TMC2130
 #if ENABLED(HAVE_TMC2130)  // Choose your axes here. This is mandatory!
   #define X_IS_TMC2130
   //#define X2_IS_TMC2130
@@ -1131,10 +1131,10 @@
   #define HOLD_MULTIPLIER    0.5  // Scales down the holding current from run current
   #define INTERPOLATE       true  // Interpolate X/Y/Z_MICROSTEPS to 256
 
-  #define X_CURRENT          950  // rms current in mA. Multiply by 1.41 for peak current.
+  #define X_CURRENT          800  // rms current in mA. Multiply by 1.41 for peak current.
   #define X_MICROSTEPS        16  // 0..256
 
-  #define Y_CURRENT          950
+  #define Y_CURRENT          800
   #define Y_MICROSTEPS        16
 
   #define Z_CURRENT          800
@@ -1149,10 +1149,10 @@
   #define Z2_CURRENT         800
   #define Z2_MICROSTEPS       16
 
-  #define E0_CURRENT         850
+  #define E0_CURRENT         800
   #define E0_MICROSTEPS       16
 
-  #define E1_CURRENT         850
+  #define E1_CURRENT         800
   #define E1_MICROSTEPS       16
 
   #define E2_CURRENT         800
@@ -1169,7 +1169,7 @@
    * The default SW SPI pins are defined the respective pins files,
    * but you can override or define them here.
    */
-  #define TMC_USE_SW_SPI
+  // #define TMC_USE_SW_SPI
   #define TMC_SW_MOSI       66
   #define TMC_SW_MISO       65
   #define TMC_SW_SCK        64
