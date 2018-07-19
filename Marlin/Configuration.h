@@ -582,7 +582,7 @@
  * Override with M92
  *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4]]]]
  */
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 100, 100, 400, 420 }
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 100, 100, 1600, 420 }
 // Original 100, 100, 400, 100
 // 366.8 = 200 * 16 * 34/11.8 / (8 * 3.142) (TEVO Titan Extruder)
 
